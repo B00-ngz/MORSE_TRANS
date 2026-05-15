@@ -1,0 +1,35 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+        "cwd": "${workspaceRoot}",
+        "executable": "${workspaceRoot}/build/STMDAC.elf",
+        "name": "Debug with OpenOCD",
+        "request": "launch",
+        "type": "cortex-debug",
+        "servertype": "openocd",
+        "configFiles": [],
+        "searchDir": [],
+        "runToEntryPoint": "main",
+        "showDevDebugOutput": "none"
+    },
+    {
+      "name": "STM32F429 Debug",
+      "cwd": "${workspaceRoot}",
+      "executable": "${workspaceRoot}/build/STMDAC.elf",
+      "request": "launch",
+      "type": "cortex-debug",
+
+      "servertype": "openocd",
+
+      "device": "STM32F429ZI",
+
+      "configFiles": [
+        "interface/stlink.cfg",
+        "target/stm32f4x.cfg"
+      ],
+
+      "runToEntryPoint": "main"
+    }
+  ]
+}
