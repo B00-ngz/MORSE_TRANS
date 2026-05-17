@@ -70,6 +70,10 @@ UART_HandleTypeDef huart1;
 
 volatile uint32_t dac_buffer[TABLE_SIZE];
 
+#define SYMBOL_GAP_MS   DOT_TIME_MS        /* gap between dots/dashes within a letter */
+#define LETTER_GAP_MS   (3 * DOT_TIME_MS)  /* gap between letters */
+#define WORD_GAP_MS     (7 * DOT_TIME_MS)  /* gap between words */
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -91,6 +95,10 @@ static void MX_CRC_Init(void);
 void GenerateSine(void);
 void Morse_SOS(void);
 void SetTone(uint8_t on);
+void Morse_SendSymbol(const char* symbol);
+void Morse_SendChar(char c);
+void Morse_Send(const char* msg);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -154,8 +162,11 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    Morse_SOS();
+  
+    Morse_Send("WOLA");          /* or any message you want */
     HAL_Delay(1000);
+    // Morse_SOS();
+    // HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -693,14 +704,25 @@ void GenerateSine(void)
     }
 }
 
+// void SetTone(uint8_t on)
+// {
+//     for (int i = 0; i < TABLE_SIZE; i++)
+//     {
+//         if (on)
+//             dac_buffer[i] = (uint16_t)((sinf(2 * M_PI * i / TABLE_SIZE) + 1) * 2047); // 1kHz tone
+//         else
+//             dac_buffer[i] = 2047; // silence (mid-scale)
+//     }
+// }
+
 void SetTone(uint8_t on)
 {
     for (int i = 0; i < TABLE_SIZE; i++)
     {
         if (on)
-            dac_buffer[i] = (uint16_t)((sinf(2 * M_PI * i / TABLE_SIZE) + 1.0f) * 2047);
+            dac_buffer[i] = (uint32_t)(2482 + 1221 * sinf(2.0f * M_PI * i / TABLE_SIZE));
         else
-            dac_buffer[i] = 2048; // silence (mid-scale)
+            dac_buffer[i] = 2482;   /* 2V DC offset, no signal */
     }
 }
 
@@ -735,6 +757,72 @@ void Morse_SOS(void)
     }
 }
 
+/* Add to USER CODE BEGIN 4 */
+
+/* Morse code strings for A-Z and 0-9 */
+static const char* morseTable[] = {
+    /* A-Z */
+    ".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..",
+    ".---", "-.-", ".-..", "--", "-.", "---", ".--.", "--.-", ".-.",
+    "...", "-", "..-", "...-", ".--", "-..-", "-.--", "--..",
+    /* 0-9 */
+    "-----", ".----", "..---", "...--", "....-",
+    ".....", "-....", "--...", "---..", "----."
+};
+
+static const char morseChars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+void Morse_SendSymbol(const char* symbol)
+{
+    for (int i = 0; symbol[i] != '\0'; i++)
+    {
+        if (symbol[i] == '.')
+        {
+            SetTone(1);
+            HAL_Delay(DOT_TIME_MS);
+        }
+        else if (symbol[i] == '-')
+        {
+            SetTone(1);
+            HAL_Delay(DASH_TIME_MS);
+        }
+        SetTone(0);
+        HAL_Delay(SYMBOL_GAP_MS);  /* gap between elements */
+    }
+}
+
+void Morse_SendChar(char c)
+{
+    if (c == ' ')
+    {
+        /* Word gap (we already added letter gap, so add remaining) */
+        HAL_Delay(WORD_GAP_MS - LETTER_GAP_MS);
+        return;
+    }
+
+    /* Convert to uppercase */
+    if (c >= 'a' && c <= 'z') c -= 32;
+
+    /* Find in table */
+    for (int i = 0; morseChars[i] != '\0'; i++)
+    {
+        if (morseChars[i] == c)
+        {
+            Morse_SendSymbol(morseTable[i]);
+            HAL_Delay(LETTER_GAP_MS - SYMBOL_GAP_MS); /* top up to letter gap */
+            return;
+        }
+    }
+    /* Unknown character — skip */
+}
+
+void Morse_Send(const char* msg)
+{
+    for (int i = 0; msg[i] != '\0'; i++)
+    {
+        Morse_SendChar(msg[i]);
+    }
+}
 
 /* USER CODE END 4 */
 
